@@ -2,6 +2,7 @@
 import { google } from "googleapis";
 import { NextApiRequest, NextApiResponse } from "next";
 import { toZonedTime } from 'date-fns-tz';
+import { formatISO } from 'date-fns';
 
 // 営業時間定義
 const BUSINESS_HOURS: {
@@ -120,9 +121,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           // 他の予定が重なっていなければ枠追加
           const overlapping = busyEvents.some(ev => cursor < ev.end && new Date(cursor.getTime() + 30 * 60 * 1000) > ev.start);
           if (!overlapping) {
+            const zonedStart = toZonedTime(cursor, timeZone);
+            const zonedEnd = toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone);
             onlineSlots.push({
-              start: cursor.toISOString(),
-              end: new Date(cursor.getTime() + 30 * 60 * 1000).toISOString(),
+              start: formatISO(zonedStart, { representation: 'complete' }),
+              end: formatISO(zonedEnd, { representation: 'complete' })
             });
           }
         }
