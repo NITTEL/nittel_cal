@@ -31,7 +31,6 @@ function getBusinessHours(type: "onsite" | "online", date: Date) {
   return hours;
 }
 
-const isProd = process.env.VERCEL === '1';
 const timeZone = 'Asia/Hong_Kong';
 
 // 香港時間の「今日の0時」から枠生成する
