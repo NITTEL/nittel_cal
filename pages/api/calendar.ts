@@ -100,7 +100,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     cursor.setMinutes(cursor.getMinutes() < 30 ? 0 : 30, 0, 0);
     while (cursor < endDate) {
       const zonedCursor = toZonedTime(cursor, timeZone);
-      if (zonedCursor <= nowZoned) {
+      if (zonedCursor.getTime() < nowZoned.getTime()) {
         cursor = new Date(cursor.getTime() + 30 * 60 * 1000);
         continue;
       }
