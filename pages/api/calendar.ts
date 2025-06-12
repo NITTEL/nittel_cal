@@ -97,34 +97,33 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let cursor = new Date(now);
     cursor.setMinutes(cursor.getMinutes() < 30 ? 0 : 30, 0, 0);
     while (cursor < endDate) {
+      const zonedCursor = toZonedTime(cursor, timeZone);
       // 来社枠：在社期間内かつ営業時間内
-      const isOnsitePeriod = onsitePeriods.some(p => cursor >= p.start && cursor < p.end);
-      const onsiteHours = getBusinessHours("onsite", cursor);
+      const isOnsitePeriod = onsitePeriods.some(p => zonedCursor >= p.start && zonedCursor < p.end);
+      const onsiteHours = getBusinessHours("onsite", zonedCursor);
       if (isOnsitePeriod && onsiteHours) {
-        const hour = cursor.getHours() + cursor.getMinutes() / 60;
+        const hour = zonedCursor.getHours() + zonedCursor.getMinutes() / 60;
         if (hour >= onsiteHours.start && hour < onsiteHours.end) {
-          // 他の予定が重なっていなければ枠追加
-          const overlapping = busyEvents.some(ev => cursor < ev.end && new Date(cursor.getTime() + 30 * 60 * 1000) > ev.start);
+          const overlapping = busyEvents.some(ev => zonedCursor < ev.end && new Date(zonedCursor.getTime() + 30 * 60 * 1000) > ev.start);
           if (!overlapping) {
+            const zonedEnd = toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone);
             onsiteSlots.push({
-              start: cursor.toISOString(),
-              end: new Date(cursor.getTime() + 30 * 60 * 1000).toISOString(),
+              start: formatISO(zonedCursor, { representation: 'complete' }),
+              end: formatISO(zonedEnd, { representation: 'complete' })
             });
           }
         }
       }
       // オンライン枠：全営業日・営業時間内
-      const onlineHours = getBusinessHours("online", cursor);
+      const onlineHours = getBusinessHours("online", zonedCursor);
       if (onlineHours) {
-        const hour = cursor.getHours() + cursor.getMinutes() / 60;
+        const hour = zonedCursor.getHours() + zonedCursor.getMinutes() / 60;
         if (hour >= onlineHours.start && hour < onlineHours.end) {
-          // 他の予定が重なっていなければ枠追加
-          const overlapping = busyEvents.some(ev => cursor < ev.end && new Date(cursor.getTime() + 30 * 60 * 1000) > ev.start);
+          const overlapping = busyEvents.some(ev => zonedCursor < ev.end && new Date(zonedCursor.getTime() + 30 * 60 * 1000) > ev.start);
           if (!overlapping) {
-            const zonedStart = toZonedTime(cursor, timeZone);
             const zonedEnd = toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone);
             onlineSlots.push({
-              start: formatISO(zonedStart, { representation: 'complete' }),
+              start: formatISO(zonedCursor, { representation: 'complete' }),
               end: formatISO(zonedEnd, { representation: 'complete' })
             });
           }
