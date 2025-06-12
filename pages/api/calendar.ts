@@ -33,7 +33,14 @@ function getBusinessHours(type: "onsite" | "online", date: Date) {
 
 const isProd = process.env.VERCEL === '1';
 const timeZone = 'Asia/Hong_Kong';
-const getDate = (date: Date) => isProd ? toZonedTime(date, timeZone) : date;
+
+// 香港時間の「今日の0時」から枠生成する
+const base = toZonedTime(new Date(), timeZone);
+base.setHours(0,0,0,0);
+const now = new Date(base);
+const endDate = new Date(base);
+endDate.setDate(now.getDate() + 30);
+endDate.setHours(23,59,59,999);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -48,11 +55,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     });
 
     const calendar = google.calendar({ version: "v3", auth });
-
-    const now = getDate(new Date());
-    const endDate = getDate(new Date());
-    endDate.setDate(now.getDate() + 30); // 今後30日分
-    endDate.setHours(23, 59, 59, 999);
 
     // 予定を全件取得
     const events = await calendar.events.list({
@@ -72,8 +74,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const startStr = ev.start && (ev.start.dateTime ?? ev.start.date) ? String(ev.start.dateTime ?? ev.start.date) : new Date().toISOString();
         const endStr = ev.end && (ev.end.dateTime ?? ev.end.date) ? String(ev.end.dateTime ?? ev.end.date) : new Date().toISOString();
         return {
-          start: getDate(new Date(startStr)),
-          end: getDate(new Date(endStr)),
+          start: toZonedTime(new Date(startStr), timeZone),
+          end: toZonedTime(new Date(endStr), timeZone),
         };
       });
 
@@ -84,16 +86,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         const startStr = ev.start && (ev.start.dateTime ?? ev.start.date) ? String(ev.start.dateTime ?? ev.start.date) : new Date().toISOString();
         const endStr = ev.end && (ev.end.dateTime ?? ev.end.date) ? String(ev.end.dateTime ?? ev.end.date) : new Date().toISOString();
         return {
-          start: getDate(new Date(startStr)),
-          end: getDate(new Date(endStr)),
+          start: toZonedTime(new Date(startStr), timeZone),
+          end: toZonedTime(new Date(endStr), timeZone),
         };
       });
 
     // 30分単位で今後30日分の枠を生成
     const onsiteSlots = [];
     const onlineSlots = [];
-    let cursor = getDate(new Date(now));
-    cursor.setMinutes(cursor.getMinutes() < 30 ? 0 : 30, 0, 0); // 30分単位に揃える
+    let cursor = new Date(now);
+    cursor.setMinutes(cursor.getMinutes() < 30 ? 0 : 30, 0, 0);
     while (cursor < endDate) {
       // 来社枠：在社期間内かつ営業時間内
       const isOnsitePeriod = onsitePeriods.some(p => cursor >= p.start && cursor < p.end);
@@ -127,7 +129,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         }
       }
       // 次の30分へ
-      cursor = getDate(new Date(cursor.getTime() + 30 * 60 * 1000));
+      cursor = new Date(cursor.getTime() + 30 * 60 * 1000);
     }
 
     res.status(200).json({ onsiteSlots, onlineSlots });
