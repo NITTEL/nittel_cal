@@ -30,10 +30,6 @@ function getBusinessHours(type: "onsite" | "online", date: Date) {
   return hours;
 }
 
-function getDateRange(start: Date, end: Date) {
-  // 未使用なので削除
-}
-
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const auth = new google.auth.OAuth2(

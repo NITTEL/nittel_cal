@@ -13,13 +13,6 @@ function formatSlot(slot: TimeSlot) {
   return `${start.getMonth() + 1}/${start.getDate()}（${youbi}） ${start.getHours().toString().padStart(2, "0")}:${start.getMinutes().toString().padStart(2, "0")}〜${end.getHours().toString().padStart(2, "0")}:${end.getMinutes().toString().padStart(2, "0")}`;
 }
 
-function getWeekStart(date: Date) {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  d.setDate(d.getDate() - d.getDay()); // 日曜始まり
-  return d;
-}
-
 function getDayHours(meetingType: string, day: Date) {
   // meetingType: "onsite" or "online"
   // 営業時間ロジックをAPIと揃える
@@ -122,7 +115,6 @@ export default function ReservationFlow() {
     const slots = meetingType === "onsite" ? onsiteSlots : onlineSlots;
     const sortedSlots = [...slots].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
     const top4 = sortedSlots.slice(0, 4);
-    const rest = sortedSlots.slice(4);
 
     // カレンダー表用データ作成
     const now = new Date();
