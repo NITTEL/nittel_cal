@@ -1,4 +1,4 @@
-import { useSession, signIn } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 
 interface TimeSlot {
@@ -6,7 +6,7 @@ interface TimeSlot {
   end: string;
 }
 
-function formatSlot(slot: any) {
+function formatSlot(slot: TimeSlot) {
   const start = new Date(slot.start);
   const end = new Date(slot.end);
   const youbi = ["日", "月", "火", "水", "木", "金", "土"][start.getDay()];
@@ -38,13 +38,11 @@ function getDayHours(meetingType: string, day: Date) {
 }
 
 export default function ReservationFlow() {
-  const { data: session } = useSession();
+  useSession();
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
   const [meetingType, setMeetingType] = useState<"onsite" | "online" | null>(null);
-  const [onsiteSlots, setOnsiteSlots] = useState<any[]>([]);
-  const [onlineSlots, setOnlineSlots] = useState<any[]>([]);
-  const [nowAvailable, setNowAvailable] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<any>(null);
+  const [onsiteSlots, setOnsiteSlots] = useState<TimeSlot[]>([]);
+  const [onlineSlots, setOnlineSlots] = useState<TimeSlot[]>([]);
   const [form, setForm] = useState({ name: "", email: "", detail: "" });
   const [weekOffset, setWeekOffset] = useState(0);
 
@@ -54,9 +52,6 @@ export default function ReservationFlow() {
       .then(data => {
         setOnsiteSlots(data.onsiteSlots || []);
         setOnlineSlots(data.onlineSlots || []);
-        setNowAvailable(
-          data.freeSlots?.length > 0 && new Date(data.freeSlots[0].start) <= new Date()
-        );
       });
   }, []);
 
@@ -82,7 +77,6 @@ export default function ReservationFlow() {
             <button
               style={{ padding: "1rem 2rem", fontSize: "1.1rem", borderRadius: 8, background: "#1976d2", color: "#fff", border: "none", fontWeight: "bold" }}
               onClick={() => {
-                setSelectedSlot(nowSlot);
                 setStep(3); // すぐ予約フォームへ
               }}
             >
@@ -153,7 +147,7 @@ export default function ReservationFlow() {
           {top4.length === 0 ? <span>予約可能な枠がありません</span> : top4.map((slot, i) => (
             <button
               key={i}
-              onClick={() => { setSelectedSlot(slot); setStep(3); }}
+              onClick={() => { setStep(3); }}
               style={{
                 padding: "1rem 2rem",
                 fontSize: "1.1rem",
@@ -191,7 +185,7 @@ export default function ReservationFlow() {
                       <td key={j} style={{ textAlign: "center", border: "1px solid #ccc", padding: 2 }}>
                         {slot ? (
                           <button
-                            onClick={() => { setSelectedSlot(slot); setStep(3); }}
+                            onClick={() => { setStep(3); }}
                             style={{ background: "#fff", border: "none", fontSize: "1.2rem", cursor: "pointer" }}
                           >○</button>
                         ) : (

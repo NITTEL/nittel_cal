@@ -31,14 +31,7 @@ function getBusinessHours(type: "onsite" | "online", date: Date) {
 }
 
 function getDateRange(start: Date, end: Date) {
-  const days = [];
-  let d = new Date(start);
-  d.setHours(0, 0, 0, 0);
-  while (d <= end) {
-    days.push(new Date(d));
-    d.setDate(d.getDate() + 1);
-  }
-  return days;
+  // 未使用なので削除
 }
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -74,18 +67,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 在社予定（タイトルに「在社」含む）を抽出
     const onsitePeriods = items
       .filter(ev => ev.summary && ev.summary.includes("在社"))
-      .map(ev => ({
-        start: new Date(ev.start?.dateTime || ev.start?.date!),
-        end: new Date(ev.end?.dateTime || ev.end?.date!),
-      }));
+      .map(ev => {
+        const startStr = ev.start && (ev.start.dateTime ?? ev.start.date) ? String(ev.start.dateTime ?? ev.start.date) : new Date().toISOString();
+        const endStr = ev.end && (ev.end.dateTime ?? ev.end.date) ? String(ev.end.dateTime ?? ev.end.date) : new Date().toISOString();
+        return {
+          start: new Date(startStr),
+          end: new Date(endStr),
+        };
+      });
 
     // 他の予定（タイトルに「在社」含まない）
     const busyEvents = items
       .filter(ev => !ev.summary || !ev.summary.includes("在社"))
-      .map(ev => ({
-        start: new Date(ev.start?.dateTime || ev.start?.date!),
-        end: new Date(ev.end?.dateTime || ev.end?.date!),
-      }));
+      .map(ev => {
+        const startStr = ev.start && (ev.start.dateTime ?? ev.start.date) ? String(ev.start.dateTime ?? ev.start.date) : new Date().toISOString();
+        const endStr = ev.end && (ev.end.dateTime ?? ev.end.date) ? String(ev.end.dateTime ?? ev.end.date) : new Date().toISOString();
+        return {
+          start: new Date(startStr),
+          end: new Date(endStr),
+        };
+      });
 
     // 30分単位で今後30日分の枠を生成
     const onsiteSlots = [];
@@ -129,11 +130,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     res.status(200).json({ onsiteSlots, onlineSlots });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Calendar API Error:", error);
     res.status(500).json({ 
       message: "Calendar fetch failed", 
-      error: error?.message || "Unknown error" 
+      error: (error instanceof Error ? error.message : "Unknown error")
     });
   }
 }
