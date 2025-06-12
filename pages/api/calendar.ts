@@ -42,6 +42,8 @@ const endDate = new Date(base);
 endDate.setDate(now.getDate() + 30);
 endDate.setHours(23,59,59,999);
 
+const nowZoned = toZonedTime(new Date(), timeZone);
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
     const auth = new google.auth.OAuth2(
@@ -98,6 +100,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     cursor.setMinutes(cursor.getMinutes() < 30 ? 0 : 30, 0, 0);
     while (cursor < endDate) {
       const zonedCursor = toZonedTime(cursor, timeZone);
+      if (zonedCursor <= nowZoned) {
+        cursor = new Date(cursor.getTime() + 30 * 60 * 1000);
+        continue;
+      }
       // 来社枠：在社期間内かつ営業時間内
       const isOnsitePeriod = onsitePeriods.some(p => zonedCursor >= p.start && zonedCursor < p.end);
       const onsiteHours = getBusinessHours("onsite", zonedCursor);
