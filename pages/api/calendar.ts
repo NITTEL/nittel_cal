@@ -35,11 +35,9 @@ function getBusinessHours(type: "onsite" | "online", date: Date) {
 }
 
 // 香港時間の「今日の0時」から枠生成する
-const now = toZonedTime(new Date(), timeZone);
-const base = toZonedTime(new Date(now), timeZone);
+const base = toZonedTime(new Date(), timeZone);
 base.setHours(0, 0, 0, 0);
-
-const endDate = toZonedTime(new Date(base), timeZone);
+const endDate = new Date(base);
 endDate.setDate(base.getDate() + 30);
 endDate.setHours(23, 59, 59, 999);
 
@@ -50,120 +48,78 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       process.env.GOOGLE_CLIENT_SECRET,
       process.env.GOOGLE_REDIRECT_URI
     );
-
-    auth.setCredentials({
-      refresh_token: process.env.GOOGLE_REFRESH_TOKEN,
-    });
-
+    auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
     const calendar = google.calendar({ version: "v3", auth });
 
-    // 予定を全件取得（タイムゾーンを明示的に指定）
+    // 予定を全件取得
     const events = await calendar.events.list({
       calendarId: "primary",
-      timeMin: formatISO(base),
-      timeMax: formatISO(endDate),
-      timeZone: timeZone,
+      timeMin: base.toISOString(),
+      timeMax: endDate.toISOString(),
       singleEvents: true,
       orderBy: "startTime",
       maxResults: 2500,
     });
-
-    console.log('API Response TimeZone:', events.data.timeZone);
-    console.log('Server Base Time:', formatInTimeZone(base, timeZone, 'yyyy-MM-dd HH:mm:ss zzz'));
-    console.log('Server End Time:', formatInTimeZone(endDate, timeZone, 'yyyy-MM-dd HH:mm:ss zzz'));
-
     const items = events.data.items || [];
 
-    // 在社予定（タイトルに「在社」含む）を抽出
+    // 在社予定（タイトルに「在社」含む）
     const onsitePeriods = items
       .filter(ev => ev.summary && ev.summary.includes("在社"))
       .map(ev => {
-        const startStr = ev.start && (ev.start.dateTime ?? ev.start.date) ? String(ev.start.dateTime ?? ev.start.date) : new Date().toISOString();
-        const endStr = ev.end && (ev.end.dateTime ?? ev.end.date) ? String(ev.end.dateTime ?? ev.end.date) : new Date().toISOString();
-        return {
-          start: toZonedTime(new Date(startStr), timeZone),
-          end: toZonedTime(new Date(endStr), timeZone),
-        };
+        const start = new Date(ev.start?.dateTime || ev.start?.date || new Date());
+        const end = new Date(ev.end?.dateTime || ev.end?.date || new Date());
+        return { start, end };
       });
-
     // 他の予定（タイトルに「在社」含まない）
     const busyEvents = items
       .filter(ev => !ev.summary || !ev.summary.includes("在社"))
       .map(ev => {
-        const startStr = ev.start && (ev.start.dateTime ?? ev.start.date) ? String(ev.start.dateTime ?? ev.start.date) : new Date().toISOString();
-        const endStr = ev.end && (ev.end.dateTime ?? ev.end.date) ? String(ev.end.dateTime ?? ev.end.date) : new Date().toISOString();
-        return {
-          start: toZonedTime(new Date(startStr), timeZone),
-          end: toZonedTime(new Date(endStr), timeZone),
-        };
+        const start = new Date(ev.start?.dateTime || ev.start?.date || new Date());
+        const end = new Date(ev.end?.dateTime || ev.end?.date || new Date());
+        return { start, end };
       });
 
-    // 30分単位で今後30日分の枠を生成
     const onsiteSlots = [];
     const onlineSlots = [];
-    let cursor = toZonedTime(new Date(base), timeZone);
-    cursor.setMinutes(cursor.getMinutes() < 30 ? 0 : 30, 0, 0);
-
+    let cursor = new Date(base);
     while (cursor < endDate) {
-      const zonedCursor = toZonedTime(cursor, timeZone);
-      const nowZoned = toZonedTime(new Date(), timeZone);
-
-      if (zonedCursor.getTime() < nowZoned.getTime()) {
-        cursor = toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone);
-        continue;
-      }
-
-      // 来社枠：在社期間内かつ営業時間内
-      const isOnsitePeriod = onsitePeriods.some(p => zonedCursor >= p.start && zonedCursor < p.end);
-      const onsiteHours = getBusinessHours("onsite", zonedCursor);
-      if (isOnsitePeriod && onsiteHours) {
-        const hour = zonedCursor.getHours() + zonedCursor.getMinutes() / 60;
-        if (hour >= onsiteHours.start && hour < onsiteHours.end) {
-          const overlapping = busyEvents.some(ev => zonedCursor < ev.end && toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone) > ev.start);
-          if (!overlapping) {
-            const zonedEnd = toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone);
-            onsiteSlots.push({
-              start: formatISO(zonedCursor, { representation: 'complete' }),
-              end: formatISO(zonedEnd, { representation: 'complete' })
-            });
-          }
+      const zoned = toZonedTime(cursor, timeZone);
+      const dow = zoned.getDay();
+      const hour = zoned.getHours() + zoned.getMinutes() / 60;
+      // 営業時間ロジック
+      // 来社: 火～金 14-19時、土 10-13時
+      let onsiteOK = false;
+      if (dow >= 2 && dow <= 5 && hour >= 14 && hour < 19) onsiteOK = true;
+      if (dow === 6 && hour >= 10 && hour < 13) onsiteOK = true;
+      // オンライン: 火～金 14-19時、土 10-13時
+      let onlineOK = false;
+      if (dow >= 2 && dow <= 5 && hour >= 14 && hour < 19) onlineOK = true;
+      if (dow === 6 && hour >= 10 && hour < 13) onlineOK = true;
+      // 在社期間内かつ他の予定と被らない
+      if (onsiteOK && onsitePeriods.some(p => cursor >= p.start && cursor < p.end)) {
+        const overlapping = busyEvents.some(ev => cursor < ev.end && new Date(cursor.getTime() + 30 * 60 * 1000) > ev.start);
+        if (!overlapping) {
+          onsiteSlots.push({
+            start: formatISO(cursor, { representation: 'complete' }),
+            end: formatISO(new Date(cursor.getTime() + 30 * 60 * 1000), { representation: 'complete' })
+          });
         }
       }
-
-      // オンライン枠：全営業日・営業時間内
-      const onlineHours = getBusinessHours("online", zonedCursor);
-      if (onlineHours) {
-        const hour = zonedCursor.getHours() + zonedCursor.getMinutes() / 60;
-        if (hour >= onlineHours.start && hour < onlineHours.end) {
-          const overlapping = busyEvents.some(ev => zonedCursor < ev.end && toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone) > ev.start);
-          if (!overlapping) {
-            const zonedEnd = toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone);
-            onlineSlots.push({
-              start: formatISO(zonedCursor, { representation: 'complete' }),
-              end: formatISO(zonedEnd, { representation: 'complete' })
-            });
-          }
+      if (onlineOK) {
+        const overlapping = busyEvents.some(ev => cursor < ev.end && new Date(cursor.getTime() + 30 * 60 * 1000) > ev.start);
+        if (!overlapping) {
+          onlineSlots.push({
+            start: formatISO(cursor, { representation: 'complete' }),
+            end: formatISO(new Date(cursor.getTime() + 30 * 60 * 1000), { representation: 'complete' })
+          });
         }
       }
-
-      // 次の30分へ
-      cursor = toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone);
+      cursor = new Date(cursor.getTime() + 30 * 60 * 1000);
     }
-
-    // デバッグ用：最初の数個のスロットをログ出力
-    console.log('First few onsite slots:', onsiteSlots.slice(0, 3));
-    console.log('First few online slots:', onlineSlots.slice(0, 3));
-
-    // ここで日付・時間順にソート
     onsiteSlots.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
     onlineSlots.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
-
     res.status(200).json({ onsiteSlots, onlineSlots });
   } catch (error: unknown) {
-    console.error("Calendar API Error:", error);
-    res.status(500).json({ 
-      message: "Calendar fetch failed", 
-      error: (error instanceof Error ? error.message : "Unknown error")
-    });
+    res.status(500).json({ message: "Calendar fetch failed", error: (error instanceof Error ? error.message : "Unknown error") });
   }
 }
