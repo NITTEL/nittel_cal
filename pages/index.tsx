@@ -43,6 +43,7 @@ export default function ReservationFlow() {
   const [form, setForm] = useState({ name: "", email: "", detail: "" });
   const [weekOffset, setWeekOffset] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -171,6 +172,8 @@ export default function ReservationFlow() {
 
   // ステップ1：面談方法選択
   if (step === 1) {
+    // 最短の対面枠を取得
+    const earliestOnsite = onsiteSlots.length > 0 ? onsiteSlots[0] : null;
     return (
       <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
         <div className="max-w-4xl mx-auto px-4 py-12">
@@ -202,7 +205,17 @@ export default function ReservationFlow() {
                 <br />
                 より詳しいご相談が可能です。
               </p>
-              <div className="flex items-center">
+              {meetingType === 'onsite' && earliestOnsite && (
+                <div className="mt-4 p-3 bg-blue-50 rounded-lg text-blue-900 text-center text-sm font-semibold">
+                  最短でご案内できる日時：<br />
+                  {new Date(earliestOnsite.start).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}
+                  {' '}
+                  {new Date(earliestOnsite.start).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                  〜
+                  {new Date(earliestOnsite.end).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                </div>
+              )}
+              <div className="flex items-center mt-4">
                 <input
                   type="radio"
                   name="type"
@@ -233,7 +246,7 @@ export default function ReservationFlow() {
                 <br />
                 ご自宅やオフィスからご参加いただけます。
               </p>
-              <div className="flex items-center">
+              <div className="flex items-center mt-4">
                 <input
                   type="radio"
                   name="type"
@@ -305,7 +318,10 @@ export default function ReservationFlow() {
                 {top4.map((slot, i) => (
                   <button
                     key={i}
-                    onClick={() => setStep(3)}
+                    onClick={() => {
+                      setSelectedSlot(slot);
+                      setStep(3);
+                    }}
                     className="bg-white rounded-xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 border-2 border-blue-500"
                   >
                     <div className="text-center">
@@ -364,7 +380,10 @@ export default function ReservationFlow() {
                           >
                             {slot ? (
                               <button
-                                onClick={() => setStep(3)}
+                                onClick={() => {
+                                  setSelectedSlot(slot);
+                                  setStep(3);
+                                }}
                                 className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
                               >
                                 ○
@@ -397,6 +416,39 @@ export default function ReservationFlow() {
 
   // ステップ3：フォーム入力
   if (step === 3) {
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!selectedSlot || !meetingType) return;
+
+      try {
+        const response = await fetch('/api/calendar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            start: selectedSlot.start,
+            end: selectedSlot.end,
+            name: form.name,
+            email: form.email,
+            detail: form.detail,
+            meetingType,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('予約の作成に失敗しました');
+        }
+
+        // 面談方法をサンクスページ用に保存
+        sessionStorage.setItem('meetingType', meetingType);
+        router.push('/thanks');
+      } catch (error) {
+        console.error('予約エラー:', error);
+        alert('予約の作成に失敗しました。もう一度お試しください。');
+      }
+    };
+
     return (
       <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
         <div className="max-w-2xl mx-auto px-4 py-12">
@@ -410,57 +462,71 @@ export default function ReservationFlow() {
           </div>
 
           <div className="bg-white rounded-xl shadow-lg p-8">
-            <form onSubmit={e => { e.preventDefault(); alert("送信処理（仮）"); }}>
+            {/* 選択中の予約時間と面談方法を見やすく表示 */}
+            {(selectedSlot || meetingType) && (
+              <div className="mb-6 p-4 bg-blue-50 rounded-lg text-center">
+                <div className="text-sm text-gray-500 mb-1">選択中の予約内容</div>
+                {meetingType && (
+                  <div className="text-base font-semibold text-blue-900 mb-1">
+                    面談方法：{meetingType === 'onsite' ? '対面' : 'オンライン'}
+                  </div>
+                )}
+                {selectedSlot && (
+                  <div className="text-lg font-bold text-blue-700">
+                    {new Date(selectedSlot.start).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric', weekday: 'short' })}
+                    {' '}
+                    {new Date(selectedSlot.start).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                    {' 〜 '}
+                    {new Date(selectedSlot.end).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                )}
+              </div>
+            )}
+            <form onSubmit={handleSubmit}>
               <div className="space-y-6">
                 {/* お名前 */}
                 <div>
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
-                    お名前 <span className="text-red-500">*</span>
+                    お名前
                   </label>
                   <input
                     id="name"
                     type="text"
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                    required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="山田 太郎"
                   />
                 </div>
-
                 {/* メールアドレス */}
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                    メールアドレス <span className="text-red-500">*</span>
+                    メールアドレス
                   </label>
                   <input
                     id="email"
                     type="email"
                     value={form.email}
                     onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    required
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="example@email.com"
                   />
                 </div>
-
                 {/* ご要件 */}
                 <div>
                   <label htmlFor="detail" className="block text-sm font-medium text-gray-700 mb-2">
-                    ご要件 <span className="text-red-500">*</span>
+                    ご要件
                   </label>
                   <textarea
                     id="detail"
                     value={form.detail}
                     onChange={e => setForm(f => ({ ...f, detail: e.target.value }))}
-                    required
                     rows={4}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="ご相談内容やご質問など、お気軽にご記入ください"
                   />
                 </div>
               </div>
-
               <div className="mt-8 flex justify-between items-center">
                 <button
                   type="button"

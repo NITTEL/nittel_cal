@@ -34,7 +34,45 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log("使用中のカレンダーID:", process.env.CALENDAR_ID);
     const calendar = google.calendar({ version: "v3", auth });
 
-    // 予定を全件取得
+    // POSTリクエストの場合（予約作成）
+    if (req.method === 'POST') {
+      const { start, end, name, email, detail, meetingType } = req.body;
+
+      // ランダムなrequestIdを生成
+      const requestId = Math.random().toString(36).substring(2, 15);
+
+      const event = {
+        summary: `${meetingType === 'onsite' ? '来社' : 'オンライン'}面談: ${name}`,
+        description: `予約者: ${name}\nメール: ${email}\n\nご要件:\n${detail}`,
+        start: {
+          dateTime: start,
+          timeZone: 'Asia/Tokyo',
+        },
+        end: {
+          dateTime: end,
+          timeZone: 'Asia/Tokyo',
+        },
+        // オンライン面談の場合はGoogle Meetリンクを付与
+        ...(meetingType === 'online' && {
+          conferenceData: {
+            createRequest: {
+              requestId,
+              conferenceSolutionKey: { type: 'hangoutsMeet' }
+            }
+          }
+        })
+      };
+
+      const response = await calendar.events.insert({
+        calendarId: process.env.CALENDAR_ID,
+        requestBody: event,
+        ...(meetingType === 'online' && { conferenceDataVersion: 1 })
+      });
+
+      return res.status(200).json({ event: response.data });
+    }
+
+    // GETリクエストの場合（予約枠取得）
     const events = await calendar.events.list({
       calendarId,
       timeMin: base.toISOString(),
