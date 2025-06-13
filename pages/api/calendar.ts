@@ -4,27 +4,6 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { toZonedTime } from 'date-fns-tz';
 import { formatISO } from 'date-fns';
 
-// 営業時間定義
-const BUSINESS_HOURS: {
-  onsite: { [key: string]: { start: number; end: number } };
-  online: { [key: string]: { start: number; end: number } };
-} = {
-  onsite: {
-    "2": { start: 14, end: 19 }, // 火
-    "3": { start: 14, end: 19 }, // 水
-    "4": { start: 14, end: 19 }, // 木
-    "5": { start: 14, end: 19 }, // 金
-    "6": { start: 10, end: 13 }, // 土
-  },
-  online: {
-    "2": { start: 14, end: 19 },
-    "3": { start: 14, end: 19 },
-    "4": { start: 14, end: 19 },
-    "5": { start: 14, end: 19 },
-    "6": { start: 10, end: 13 },
-  },
-};
-
 const timeZone = 'Asia/Hong_Kong';
 
 // 香港時間の「今日の0時」から枠生成する
