@@ -1,5 +1,6 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
+import { useRouter } from 'next/router';
 
 interface TimeSlot {
   start: string;
@@ -31,6 +32,7 @@ function getDayHours(meetingType: string, day: Date) {
 }
 
 export default function ReservationFlow() {
+  const router = useRouter();
   useSession();
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
   const [meetingType, setMeetingType] = useState<"onsite" | "online" | null>(null);
@@ -38,13 +40,18 @@ export default function ReservationFlow() {
   const [onlineSlots, setOnlineSlots] = useState<TimeSlot[]>([]);
   const [form, setForm] = useState({ name: "", email: "", detail: "" });
   const [weekOffset, setWeekOffset] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    setIsLoading(true);
     fetch("/api/calendar")
       .then(res => res.json())
       .then(data => {
         setOnsiteSlots(data.onsiteSlots || []);
         setOnlineSlots(data.onlineSlots || []);
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
   }, []);
 
@@ -63,35 +70,63 @@ export default function ReservationFlow() {
             </h1>
             <p className="text-base md:text-lg text-gray-600">
               ご来店ありがとうございます！<br />
-              以下から「今すぐ案内可能」か、もしくは「後日の面談予約」が可能です。
             </p>
           </div>
           <div className="flex flex-col gap-8">
-            {/* 今すぐ案内カード */}
-            <div className={`bg-white rounded-2xl shadow-xl p-7 flex flex-col items-center transition-all duration-200 ${nowSlot ? 'hover:shadow-2xl' : 'opacity-60'}`}> 
-              <span className="text-3xl mb-2">{nowSlot ? '🟢' : '⚪'}</span>
-              <h2 className="text-lg font-bold mb-1">今すぐ案内を希望</h2>
-              <p className="text-gray-600 mb-5 text-center text-sm">担当者が対応中か確認できます（5秒で完了）</p>
-              <button
-                onClick={() => setStep(3)}
-                disabled={!nowSlot}
-                className={`w-full max-w-[220px] py-2.5 rounded-lg font-bold transition-colors text-base shadow-md ${nowSlot ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-300 text-gray-400 cursor-not-allowed'}`}
-              >
-                今すぐ確認する
-              </button>
-            </div>
-            {/* 後日予約カード */}
-            <div className="bg-white rounded-2xl shadow-xl p-7 flex flex-col items-center transition-all duration-200 hover:shadow-2xl">
-              <span className="text-3xl mb-2">📅</span>
-              <h2 className="text-lg font-bold mb-1">後日面談を予約</h2>
-              <p className="text-gray-600 mb-5 text-center text-sm">ご希望の日程で来店またはオンライン面談を予約</p>
-              <button
-                onClick={() => setStep(1)}
-                className="w-full max-w-[220px] bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-colors text-base shadow-md"
-              >
-                予約を開始する
-              </button>
-            </div>
+            {isLoading ? (
+              <div className="bg-white rounded-2xl shadow-xl p-7 flex flex-col items-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+                <p className="text-gray-600 text-center">
+                  現在の空き状況を確認中です...
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* 今すぐ案内カード */}
+                {nowSlot ? (
+                  <div className="bg-white rounded-2xl shadow-xl p-7 flex flex-col items-center transition-all duration-200 hover:shadow-2xl">
+                    <span className="text-3xl mb-2">✅</span>
+                    <h2 className="text-lg font-bold mb-1">現在、担当者がオンライン対応可能です。</h2>
+                    <p className="text-gray-600 mb-5 text-center text-sm">
+                      このままご案内を開始できます。
+                    </p>
+                    <button
+                      onClick={() => {
+                        sessionStorage.setItem('fromReservation', 'true');
+                        router.push('/guide');
+                      }}
+                      className="w-full max-w-[220px] py-2.5 rounded-lg font-bold transition-colors text-base shadow-md bg-green-600 text-white hover:bg-green-700"
+                    >
+                      今すぐ案内を開始する
+                    </button>
+                    <p className="text-xs text-gray-500 mt-4">
+                      ※このボタンが表示されている場合、担当者の予定に空きがあり、すぐにご案内が可能です。
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-white rounded-2xl shadow-xl p-7 flex flex-col items-center">
+                    <span className="text-3xl mb-2">⏰</span>
+                    <h2 className="text-lg font-bold mb-1">現在の状況</h2>
+                    <p className="text-gray-600 mb-5 text-center text-sm">
+                      現在、営業時間外もしくは担当者は対応中です。<br />
+                      ご希望の日時でご予約いただけます。
+                    </p>
+                  </div>
+                )}
+                {/* 後日予約カード */}
+                <div className="bg-white rounded-2xl shadow-xl p-7 flex flex-col items-center transition-all duration-200 hover:shadow-2xl">
+                  <span className="text-3xl mb-2">📅</span>
+                  <h2 className="text-lg font-bold mb-1">後日面談を予約</h2>
+                  <p className="text-gray-600 mb-5 text-center text-sm">ご希望の日程で来店またはオンライン面談を予約</p>
+                  <button
+                    onClick={() => setStep(1)}
+                    className="w-full max-w-[220px] bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-colors text-base shadow-md"
+                  >
+                    予約を開始する
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </main>
@@ -124,7 +159,7 @@ export default function ReservationFlow() {
                 <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
                   🏢
                 </div>
-                <h2 className="text-2xl font-bold ml-4">来社で面談</h2>
+                <h2 className="text-2xl font-bold ml-4">対面で面談</h2>
               </div>
               <p className="text-gray-600 mb-6">
                 オフィスに来ていただき、対面で面談を行います。
@@ -158,7 +193,7 @@ export default function ReservationFlow() {
                 <h2 className="text-2xl font-bold ml-4">オンライン面談</h2>
               </div>
               <p className="text-gray-600 mb-6">
-                Zoomを使用してオンラインで面談を行います。
+                Google Meetを使用してオンラインで面談を行います。
                 <br />
                 ご自宅やオフィスからご参加いただけます。
               </p>
