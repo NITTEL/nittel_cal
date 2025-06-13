@@ -1,7 +1,7 @@
 // /pages/api/calendar.ts
 import { google } from "googleapis";
 import { NextApiRequest, NextApiResponse } from "next";
-import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { toZonedTime } from 'date-fns-tz';
 import { formatISO } from 'date-fns';
 
 // 営業時間定義
