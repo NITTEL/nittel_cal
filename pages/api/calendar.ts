@@ -27,13 +27,6 @@ const BUSINESS_HOURS: {
 
 const timeZone = 'Asia/Hong_Kong';
 
-function getBusinessHours(type: "onsite" | "online", date: Date) {
-  const day = date.getDay().toString();
-  const hours = BUSINESS_HOURS[type][day];
-  if (!hours) return null;
-  return hours;
-}
-
 // 香港時間の「今日の0時」から枠生成する
 const base = toZonedTime(new Date(), timeZone);
 base.setHours(0, 0, 0, 0);
