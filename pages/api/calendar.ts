@@ -4,6 +4,11 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { toZonedTime } from 'date-fns-tz';
 import { formatISO } from 'date-fns';
 
+console.log("✅ GOOGLE_CLIENT_ID:", process.env.GOOGLE_CLIENT_ID);
+console.log("✅ GOOGLE_CALENDAR_ID (raw):", JSON.stringify(process.env.GOOGLE_CALENDAR_ID));
+const calendarId = (process.env.CALENDAR_ID || "").trim();
+console.log("✅ 使用カレンダーID (trimmed):", JSON.stringify(calendarId));
+
 const timeZone = 'Asia/Hong_Kong';
 
 // 香港時間の「今日の0時」から枠生成する
@@ -26,11 +31,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       process.env.GOOGLE_REDIRECT_URI
     );
     auth.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+    console.log("使用中のカレンダーID:", process.env.CALENDAR_ID);
     const calendar = google.calendar({ version: "v3", auth });
 
     // 予定を全件取得
     const events = await calendar.events.list({
-      calendarId: "primary",
+      calendarId,
       timeMin: base.toISOString(),
       timeMax: endDate.toISOString(),
       singleEvents: true,
@@ -38,6 +44,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       maxResults: 2500,
     });
     const items = events.data.items || [];
+    console.log("予定件数:", items.length);
+    
+    items.forEach(ev => {
+      console.log("予定取得:", {
+        summary: ev.summary,
+        start: ev.start?.dateTime || ev.start?.date,
+        end: ev.end?.dateTime || ev.end?.date,
+      });
+    });
 
     // 在社予定（タイトルに「在社」含む）
     const onsitePeriods = items
@@ -53,8 +68,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       .map(ev => {
         const start = new Date(ev.start?.dateTime || ev.start?.date || new Date());
         const end = new Date(ev.end?.dateTime || ev.end?.date || new Date());
-        return { start, end };
+        return { start, end, summary: ev.summary || "" };
       });
+
+    console.log("=== busyEvents ===");
+    busyEvents.forEach(ev => {
+      console.log("予定:", ev.summary, "開始:", ev.start.toISOString(), "終了:", ev.end.toISOString());
+    });
 
     const onsiteSlots = [];
     const onlineSlots = [];
@@ -97,7 +117,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     onsiteSlots.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
     onlineSlots.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
     res.status(200).json({ onsiteSlots, onlineSlots });
-  } catch (error: unknown) {
+  } catch (error) {
+    console.error("カレンダーAPIエラー:", error);
     res.status(500).json({ message: "Calendar fetch failed", error: (error instanceof Error ? error.message : "Unknown error") });
   }
 }
