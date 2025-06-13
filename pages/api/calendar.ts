@@ -7,11 +7,16 @@ import { formatISO } from 'date-fns';
 const timeZone = 'Asia/Hong_Kong';
 
 // 香港時間の「今日の0時」から枠生成する
-const base = toZonedTime(new Date(), timeZone);
+const nowLocal = new Date();
+console.log('ローカルタイムの現在:', nowLocal.toISOString());
+const base = toZonedTime(nowLocal, timeZone);
+console.log('toZonedTimeで変換後:', base.toISOString());
 base.setHours(0, 0, 0, 0);
+console.log('setHours(0,0,0,0)後:', base.toISOString());
 const endDate = new Date(base);
 endDate.setDate(base.getDate() + 30);
 endDate.setHours(23, 59, 59, 999);
+console.log('endDate:', endDate.toISOString());
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -67,7 +72,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let onlineOK = false;
       if (dow >= 2 && dow <= 5 && hour >= 14 && hour < 19) onlineOK = true;
       if (dow === 6 && hour >= 10 && hour < 13) onlineOK = true;
-      // 在社期間内かつ他の予定と被らない
+      // 来社: 在社予定がある時間帯＋busyでない
       if (onsiteOK && onsitePeriods.some(p => cursor >= p.start && cursor < p.end)) {
         const overlapping = busyEvents.some(ev => cursor < ev.end && new Date(cursor.getTime() + 30 * 60 * 1000) > ev.start);
         if (!overlapping) {
@@ -77,6 +82,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           });
         }
       }
+      // オンライン: busyでなければ在社予定は関係なし
       if (onlineOK) {
         const overlapping = busyEvents.some(ev => cursor < ev.end && new Date(cursor.getTime() + 30 * 60 * 1000) > ev.start);
         if (!overlapping) {

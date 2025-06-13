@@ -1,6 +1,8 @@
 import { useSession } from "next-auth/react";
 import { useState, useEffect } from "react";
 import { useRouter } from 'next/router';
+import { toZonedTime } from 'date-fns-tz';
+import { startOfDay, addDays } from 'date-fns';
 
 interface TimeSlot {
   start: string;
@@ -47,8 +49,13 @@ export default function ReservationFlow() {
     fetch("/api/calendar")
       .then(res => res.json())
       .then(data => {
-        setOnsiteSlots(data.onsiteSlots || []);
-        setOnlineSlots(data.onlineSlots || []);
+        // 現在時刻（UTC）
+        const now = new Date();
+        // 枠のendが現在時刻より後のものだけ残す
+        const filteredOnsite = (data.onsiteSlots || []).filter((slot: TimeSlot) => new Date(slot.end) > now);
+        const filteredOnline = (data.onlineSlots || []).filter((slot: TimeSlot) => new Date(slot.end) > now);
+        setOnsiteSlots(filteredOnsite);
+        setOnlineSlots(filteredOnline);
       })
       .finally(() => {
         setIsLoading(false);
@@ -58,8 +65,37 @@ export default function ReservationFlow() {
   // ステップ0：トップ
   if (step === 0) {
     const allSlots = [...onsiteSlots, ...onlineSlots].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    // UTC基準で現在時刻を取得
     const now = new Date();
-    const nowSlot = allSlots.find(slot => new Date(slot.start) <= now && new Date(slot.end) > now);
+    // 今日の0時（香港時間）
+    const timeZone = 'Asia/Hong_Kong';
+    const nowHK = toZonedTime(now, timeZone);
+    const todayHK = startOfDay(nowHK);
+    const threeDaysLaterHK = addDays(todayHK, 3);
+    // スロット一覧をログ出力（今日〜3日後までのみ）
+    onsiteSlots.forEach((slot: TimeSlot) => {
+      const slotStartHK = toZonedTime(new Date(slot.start), timeZone);
+      if (slotStartHK >= todayHK && slotStartHK < threeDaysLaterHK) {
+        console.log('来社枠:', slot.start, '-', slot.end);
+      }
+    });
+    onlineSlots.forEach((slot: TimeSlot) => {
+      const slotStartHK = toZonedTime(new Date(slot.start), timeZone);
+      if (slotStartHK >= todayHK && slotStartHK < threeDaysLaterHK) {
+        console.log('オンライン枠:', slot.start, '-', slot.end);
+      }
+    });
+    // 空き枠のstart〜endの範囲内に現在時刻があるか判定（UTC基準で比較、endに到達するまでは案内可）
+    const nowSlot = [...onsiteSlots, ...onlineSlots].find(slot => {
+      const start = new Date(slot.start);
+      const end = new Date(slot.end);
+      return start <= now && now < end;
+    });
+    if (nowSlot) {
+      console.log('案内可能な枠:', nowSlot.start);
+    } else {
+      console.log('今案内できる枠はなし');
+    }
 
     return (
       <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
