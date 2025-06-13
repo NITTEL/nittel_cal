@@ -154,6 +154,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     console.log('First few onsite slots:', onsiteSlots.slice(0, 3));
     console.log('First few online slots:', onlineSlots.slice(0, 3));
 
+    // ここで日付・時間順にソート
+    onsiteSlots.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+    onlineSlots.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
     res.status(200).json({ onsiteSlots, onlineSlots });
   } catch (error: unknown) {
     console.error("Calendar API Error:", error);
