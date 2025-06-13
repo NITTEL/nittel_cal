@@ -1,7 +1,7 @@
 // /pages/api/calendar.ts
 import { google } from "googleapis";
 import { NextApiRequest, NextApiResponse } from "next";
-import { toZonedTime } from 'date-fns-tz';
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { formatISO } from 'date-fns';
 
 // 営業時間定義
@@ -25,6 +25,8 @@ const BUSINESS_HOURS: {
   },
 };
 
+const timeZone = 'Asia/Hong_Kong';
+
 function getBusinessHours(type: "onsite" | "online", date: Date) {
   const day = date.getDay().toString();
   const hours = BUSINESS_HOURS[type][day];
@@ -32,17 +34,14 @@ function getBusinessHours(type: "onsite" | "online", date: Date) {
   return hours;
 }
 
-const timeZone = 'Asia/Hong_Kong';
-
 // 香港時間の「今日の0時」から枠生成する
-const base = toZonedTime(new Date(), timeZone);
-base.setHours(0,0,0,0);
-const now = new Date(base);
-const endDate = new Date(base);
-endDate.setDate(now.getDate() + 30);
-endDate.setHours(23,59,59,999);
+const now = toZonedTime(new Date(), timeZone);
+const base = toZonedTime(new Date(now), timeZone);
+base.setHours(0, 0, 0, 0);
 
-const nowZoned = toZonedTime(new Date(), timeZone);
+const endDate = toZonedTime(new Date(base), timeZone);
+endDate.setDate(base.getDate() + 30);
+endDate.setHours(23, 59, 59, 999);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
@@ -58,15 +57,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const calendar = google.calendar({ version: "v3", auth });
 
-    // 予定を全件取得
+    // 予定を全件取得（タイムゾーンを明示的に指定）
     const events = await calendar.events.list({
       calendarId: "primary",
-      timeMin: now.toISOString(),
-      timeMax: endDate.toISOString(),
+      timeMin: formatISO(base),
+      timeMax: formatISO(endDate),
+      timeZone: timeZone,
       singleEvents: true,
       orderBy: "startTime",
       maxResults: 2500,
     });
+
+    console.log('API Response TimeZone:', events.data.timeZone);
+    console.log('Server Base Time:', formatInTimeZone(base, timeZone, 'yyyy-MM-dd HH:mm:ss zzz'));
+    console.log('Server End Time:', formatInTimeZone(endDate, timeZone, 'yyyy-MM-dd HH:mm:ss zzz'));
+
     const items = events.data.items || [];
 
     // 在社予定（タイトルに「在社」含む）を抽出
@@ -96,21 +101,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // 30分単位で今後30日分の枠を生成
     const onsiteSlots = [];
     const onlineSlots = [];
-    let cursor = new Date(now);
+    let cursor = toZonedTime(new Date(base), timeZone);
     cursor.setMinutes(cursor.getMinutes() < 30 ? 0 : 30, 0, 0);
+
     while (cursor < endDate) {
       const zonedCursor = toZonedTime(cursor, timeZone);
+      const nowZoned = toZonedTime(new Date(), timeZone);
+
       if (zonedCursor.getTime() < nowZoned.getTime()) {
-        cursor = new Date(cursor.getTime() + 30 * 60 * 1000);
+        cursor = toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone);
         continue;
       }
+
       // 来社枠：在社期間内かつ営業時間内
       const isOnsitePeriod = onsitePeriods.some(p => zonedCursor >= p.start && zonedCursor < p.end);
       const onsiteHours = getBusinessHours("onsite", zonedCursor);
       if (isOnsitePeriod && onsiteHours) {
         const hour = zonedCursor.getHours() + zonedCursor.getMinutes() / 60;
         if (hour >= onsiteHours.start && hour < onsiteHours.end) {
-          const overlapping = busyEvents.some(ev => zonedCursor < ev.end && new Date(zonedCursor.getTime() + 30 * 60 * 1000) > ev.start);
+          const overlapping = busyEvents.some(ev => zonedCursor < ev.end && toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone) > ev.start);
           if (!overlapping) {
             const zonedEnd = toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone);
             onsiteSlots.push({
@@ -120,12 +129,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
       }
+
       // オンライン枠：全営業日・営業時間内
       const onlineHours = getBusinessHours("online", zonedCursor);
       if (onlineHours) {
         const hour = zonedCursor.getHours() + zonedCursor.getMinutes() / 60;
         if (hour >= onlineHours.start && hour < onlineHours.end) {
-          const overlapping = busyEvents.some(ev => zonedCursor < ev.end && new Date(zonedCursor.getTime() + 30 * 60 * 1000) > ev.start);
+          const overlapping = busyEvents.some(ev => zonedCursor < ev.end && toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone) > ev.start);
           if (!overlapping) {
             const zonedEnd = toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone);
             onlineSlots.push({
@@ -135,9 +145,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           }
         }
       }
+
       // 次の30分へ
-      cursor = new Date(cursor.getTime() + 30 * 60 * 1000);
+      cursor = toZonedTime(new Date(cursor.getTime() + 30 * 60 * 1000), timeZone);
     }
+
+    // デバッグ用：最初の数個のスロットをログ出力
+    console.log('First few onsite slots:', onsiteSlots.slice(0, 3));
+    console.log('First few online slots:', onlineSlots.slice(0, 3));
 
     res.status(200).json({ onsiteSlots, onlineSlots });
   } catch (error: unknown) {
