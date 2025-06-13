@@ -50,38 +50,49 @@ export default function ReservationFlow() {
 
   // ステップ0：トップ
   if (step === 0) {
-    // 今すぐ対応可能な枠（onsite/onlineどちらでもOK）があるか判定
     const allSlots = [...onsiteSlots, ...onlineSlots].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
     const now = new Date();
     const nowSlot = allSlots.find(slot => new Date(slot.start) <= now && new Date(slot.end) > now);
+
     return (
-      <main style={{ padding: "2rem", fontFamily: "sans-serif" }}>
-        <h1 style={{ fontSize: "2rem", fontWeight: "bold" }}>ニッテル空き時間確認</h1>
-        <h2 style={{ marginTop: "2rem" }}>面談をご希望ですか？</h2>
-        <p style={{ margin: "1rem 0", fontSize: "1.2rem" }}>
-          {nowSlot ? (
-            <span style={{ color: "#1976d2", fontWeight: "bold" }}>🔵 今すぐ面談可能です</span>
-          ) : (
-            <span style={{ color: "#d32f2f", fontWeight: "bold" }}>🔴 現在対応できません</span>
-          )}
-        </p>
-        <div style={{ display: "flex", gap: 16 }}>
-          {nowSlot && (
-            <button
-              style={{ padding: "1rem 2rem", fontSize: "1.1rem", borderRadius: 8, background: "#1976d2", color: "#fff", border: "none", fontWeight: "bold" }}
-              onClick={() => {
-                setStep(3); // すぐ予約フォームへ
-              }}
-            >
-              今すぐ面談
-            </button>
-          )}
-          <button
-            style={{ padding: "1rem 2rem", fontSize: "1.1rem", borderRadius: 8, background: "#43a047", color: "#fff", border: "none", fontWeight: "bold" }}
-            onClick={() => setStep(1)}
-          >
-            面談を予約する
-          </button>
+      <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+        <div className="w-full max-w-md mx-auto px-4 py-12">
+          <div className="text-center mb-10">
+            <h1 className="text-3xl md:text-4xl font-bold mb-3 flex items-center justify-center gap-2">
+              <span role="img" aria-label="calendar">📅</span> 面談予約ページ
+            </h1>
+            <p className="text-base md:text-lg text-gray-600">
+              ご来店ありがとうございます！<br />
+              以下から「今すぐ案内可能」か、もしくは「後日の面談予約」が可能です。
+            </p>
+          </div>
+          <div className="flex flex-col gap-8">
+            {/* 今すぐ案内カード */}
+            <div className={`bg-white rounded-2xl shadow-xl p-7 flex flex-col items-center transition-all duration-200 ${nowSlot ? 'hover:shadow-2xl' : 'opacity-60'}`}> 
+              <span className="text-3xl mb-2">{nowSlot ? '🟢' : '⚪'}</span>
+              <h2 className="text-lg font-bold mb-1">今すぐ案内を希望</h2>
+              <p className="text-gray-600 mb-5 text-center text-sm">担当者が対応中か確認できます（5秒で完了）</p>
+              <button
+                onClick={() => setStep(3)}
+                disabled={!nowSlot}
+                className={`w-full max-w-[220px] py-2.5 rounded-lg font-bold transition-colors text-base shadow-md ${nowSlot ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-300 text-gray-400 cursor-not-allowed'}`}
+              >
+                今すぐ確認する
+              </button>
+            </div>
+            {/* 後日予約カード */}
+            <div className="bg-white rounded-2xl shadow-xl p-7 flex flex-col items-center transition-all duration-200 hover:shadow-2xl">
+              <span className="text-3xl mb-2">📅</span>
+              <h2 className="text-lg font-bold mb-1">後日面談を予約</h2>
+              <p className="text-gray-600 mb-5 text-center text-sm">ご希望の日程で来店またはオンライン面談を予約</p>
+              <button
+                onClick={() => setStep(1)}
+                className="w-full max-w-[220px] bg-blue-600 text-white py-2.5 rounded-lg font-bold hover:bg-blue-700 transition-colors text-base shadow-md"
+              >
+                予約を開始する
+              </button>
+            </div>
+          </div>
         </div>
       </main>
     );
@@ -90,39 +101,110 @@ export default function ReservationFlow() {
   // ステップ1：面談方法選択
   if (step === 1) {
     return (
-      <main style={{ padding: "2rem", fontFamily: "sans-serif" }}>
-        <h2>ご希望の面談方法を選んでください：</h2>
-        <label style={{ display: "block", margin: "1rem 0" }}>
-          <input type="radio" name="type" value="onsite"
-            checked={meetingType === "onsite"}
-            onChange={() => setMeetingType("onsite")}
-          /> 来社で面談（対面）
-        </label>
-        <label style={{ display: "block", margin: "1rem 0" }}>
-          <input type="radio" name="type" value="online"
-            checked={meetingType === "online"}
-            onChange={() => setMeetingType("online")}
-          /> オンラインで面談（Zoomなど）
-        </label>
-        <button disabled={!meetingType} onClick={() => setStep(2)}>つづける</button>
+      <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+        <div className="max-w-4xl mx-auto px-4 py-12">
+          <div className="text-center mb-12">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              面談方法を選択
+            </h1>
+            <p className="text-xl text-gray-600">
+              ご希望の面談方法をお選びください
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* 来社面談カード */}
+            <div 
+              className={`bg-white rounded-xl shadow-lg p-6 cursor-pointer transition-all duration-300 ${
+                meetingType === "onsite" ? 'ring-2 ring-blue-500' : 'hover:shadow-xl'
+              }`}
+              onClick={() => setMeetingType("onsite")}
+            >
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                  🏢
+                </div>
+                <h2 className="text-2xl font-bold ml-4">来社で面談</h2>
+              </div>
+              <p className="text-gray-600 mb-6">
+                オフィスに来ていただき、対面で面談を行います。
+                <br />
+                より詳しいご相談が可能です。
+              </p>
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  name="type"
+                  value="onsite"
+                  checked={meetingType === "onsite"}
+                  onChange={() => setMeetingType("onsite")}
+                  className="w-5 h-5 text-blue-600"
+                />
+                <span className="ml-2 text-gray-700">選択する</span>
+              </div>
+            </div>
+
+            {/* オンライン面談カード */}
+            <div 
+              className={`bg-white rounded-xl shadow-lg p-6 cursor-pointer transition-all duration-300 ${
+                meetingType === "online" ? 'ring-2 ring-blue-500' : 'hover:shadow-xl'
+              }`}
+              onClick={() => setMeetingType("online")}
+            >
+              <div className="flex items-center mb-4">
+                <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                  💻
+                </div>
+                <h2 className="text-2xl font-bold ml-4">オンライン面談</h2>
+              </div>
+              <p className="text-gray-600 mb-6">
+                Zoomを使用してオンラインで面談を行います。
+                <br />
+                ご自宅やオフィスからご参加いただけます。
+              </p>
+              <div className="flex items-center">
+                <input
+                  type="radio"
+                  name="type"
+                  value="online"
+                  checked={meetingType === "online"}
+                  onChange={() => setMeetingType("online")}
+                  className="w-5 h-5 text-blue-600"
+                />
+                <span className="ml-2 text-gray-700">選択する</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-8 text-center">
+            <button
+              disabled={!meetingType}
+              onClick={() => setStep(2)}
+              className={`px-8 py-3 rounded-lg font-bold text-white transition-colors ${
+                meetingType
+                  ? 'bg-blue-600 hover:bg-blue-700'
+                  : 'bg-gray-300 cursor-not-allowed'
+              }`}
+            >
+              次へ進む
+            </button>
+          </div>
+        </div>
       </main>
     );
   }
 
   // ステップ2：日程選択
   if (step === 2) {
-    // meetingTypeで枠を切り替え
     const slots = meetingType === "onsite" ? onsiteSlots : onlineSlots;
     const sortedSlots = [...slots].sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
     const top4 = sortedSlots.slice(0, 4);
 
-    // カレンダー表用データ作成
     const now = new Date();
-    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + weekOffset * 7); // 今日から
+    const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + weekOffset * 7);
     const days = Array.from({ length: 7 }, (_, i) => new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + i));
     const allHours = Array.from(new Set(days.flatMap(d => getDayHours(meetingType || "onsite", d)))).sort((a, b) => a - b);
 
-    // 表の○×判定
     function findSlot(day: Date, hour: number) {
       const slotStart = new Date(day);
       slotStart.setHours(Math.floor(hour), hour % 1 === 0 ? 0 : 30, 0, 0);
@@ -133,66 +215,110 @@ export default function ReservationFlow() {
     }
 
     return (
-      <main style={{ padding: "2rem", fontFamily: "sans-serif" }}>
-        <h2 style={{ fontSize: "1.5rem", fontWeight: "bold" }}>【最短予約枠】</h2>
-        <div style={{ display: "flex", gap: 16, marginBottom: 32 }}>
-          {top4.length === 0 ? <span>予約可能な枠がありません</span> : top4.map((slot, i) => (
-            <button
-              key={i}
-              onClick={() => { setStep(3); }}
-              style={{
-                padding: "1rem 2rem",
-                fontSize: "1.1rem",
-                borderRadius: 8,
-                border: "2px solid #1976d2",
-                background: "#e3f2fd",
-                cursor: "pointer",
-                fontWeight: "bold"
-              }}
-            >
-              {formatSlot(slot)}
-            </button>
-          ))}
-        </div>
-        <h2 style={{ fontSize: "1.2rem", fontWeight: "bold", marginTop: 32 }}>日時を選択</h2>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ borderCollapse: "collapse", minWidth: 700 }}>
-            <thead>
-              <tr>
-                <th></th>
-                {days.map((d, i) => (
-                  <th key={i} style={{ padding: 4, border: "1px solid #ccc", background: d.getDay() === 0 || d.getDay() === 6 ? "#f0f0f0" : "#fff" }}>
-                    {`${d.getMonth() + 1}/${d.getDate()}（${["日", "月", "火", "水", "木", "金", "土"][d.getDay()]}）`}
-                  </th>
+      <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+        <div className="max-w-6xl mx-auto px-4 py-12">
+          <div className="text-center mb-12">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              面談日時を選択
+            </h1>
+            <p className="text-xl text-gray-600">
+              {meetingType === "onsite" ? "来社" : "オンライン"}での面談日時をお選びください
+            </p>
+          </div>
+
+          {/* 最短予約枠 */}
+          {top4.length > 0 && (
+            <div className="mb-12">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">【最短予約枠】</h2>
+              <div className="grid md:grid-cols-4 gap-4">
+                {top4.map((slot, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setStep(3)}
+                    className="bg-white rounded-xl shadow-lg p-4 hover:shadow-xl transition-all duration-300 border-2 border-blue-500"
+                  >
+                    <div className="text-center">
+                      <div className="text-sm text-gray-500 mb-2">
+                        {new Date(slot.start).toLocaleDateString('ja-JP', { month: 'long', day: 'numeric' })}
+                      </div>
+                      <div className="text-lg font-bold text-blue-600">
+                        {new Date(slot.start).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                        <span className="text-gray-400"> 〜 </span>
+                        {new Date(slot.end).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </button>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {allHours.map((h, i) => (
-                <tr key={i}>
-                  <td style={{ padding: 4, border: "1px solid #ccc", fontWeight: "bold", background: "#fafafa" }}>{`${Math.floor(h)}:${h % 1 === 0 ? "00" : "30"}`}</td>
-                  {days.map((d, j) => {
-                    const slot = findSlot(d, h);
-                    return (
-                      <td key={j} style={{ textAlign: "center", border: "1px solid #ccc", padding: 2 }}>
-                        {slot ? (
-                          <button
-                            onClick={() => { setStep(3); }}
-                            style={{ background: "#fff", border: "none", fontSize: "1.2rem", cursor: "pointer" }}
-                          >○</button>
-                        ) : (
-                          <span style={{ color: "#bbb", fontSize: "1.2rem" }}>×</span>
-                        )}
+              </div>
+            </div>
+          )}
+
+          {/* カレンダー */}
+          <div className="bg-white rounded-xl shadow-lg p-6">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">日時を選択</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr>
+                    <th className="p-2 bg-gray-50 border border-gray-200"></th>
+                    {days.map((d, i) => (
+                      <th
+                        key={i}
+                        className={`p-2 border border-gray-200 ${
+                          d.getDay() === 0 || d.getDay() === 6 ? 'bg-red-50' : 'bg-gray-50'
+                        }`}
+                      >
+                        <div className="text-sm font-bold">
+                          {d.getMonth() + 1}/{d.getDate()}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {["日", "月", "火", "水", "木", "金", "土"][d.getDay()]}
+                        </div>
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {allHours.map((h, i) => (
+                    <tr key={i}>
+                      <td className="p-2 border border-gray-200 bg-gray-50 font-bold text-sm">
+                        {`${Math.floor(h)}:${h % 1 === 0 ? "00" : "30"}`}
                       </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div style={{ marginTop: 16 }}>
-          <button onClick={() => setWeekOffset(weekOffset + 1)}>次の一週間</button>
+                      {days.map((d, j) => {
+                        const slot = findSlot(d, h);
+                        return (
+                          <td
+                            key={j}
+                            className="p-2 border border-gray-200 text-center"
+                          >
+                            {slot ? (
+                              <button
+                                onClick={() => setStep(3)}
+                                className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 hover:bg-blue-200 transition-colors"
+                              >
+                                ○
+                              </button>
+                            ) : (
+                              <span className="text-gray-300">×</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => setWeekOffset(weekOffset + 1)}
+                className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                次の一週間を見る
+              </button>
+            </div>
+          </div>
         </div>
       </main>
     );
@@ -201,26 +327,87 @@ export default function ReservationFlow() {
   // ステップ3：フォーム入力
   if (step === 3) {
     return (
-      <main style={{ padding: "2rem", fontFamily: "sans-serif" }}>
-        <h2>ご予約内容の入力</h2>
-        <form onSubmit={e => { e.preventDefault(); alert("送信処理（仮）"); }}>
-          <input placeholder="お名前" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required style={{ display: "block", margin: "1rem 0" }} />
-          <input placeholder="メール" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} required style={{ display: "block", margin: "1rem 0" }} />
-          <textarea placeholder="ご要件" value={form.detail} onChange={e => setForm(f => ({ ...f, detail: e.target.value }))} required style={{ display: "block", margin: "1rem 0" }} />
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">予約確認</h2>
-            <button
-              onClick={() => {
-                // 実際の予約処理を行う
-                alert("予約を確定しました");
-                setStep(0); // トップに戻る
-              }}
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-            >
-              予約を確定
-            </button>
+      <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+        <div className="max-w-2xl mx-auto px-4 py-12">
+          <div className="text-center mb-12">
+            <h1 className="text-3xl font-bold text-gray-900 mb-4">
+              ご予約内容の入力
+            </h1>
+            <p className="text-xl text-gray-600">
+              以下の情報をご入力ください
+            </p>
           </div>
-        </form>
+
+          <div className="bg-white rounded-xl shadow-lg p-8">
+            <form onSubmit={e => { e.preventDefault(); alert("送信処理（仮）"); }}>
+              <div className="space-y-6">
+                {/* お名前 */}
+                <div>
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+                    お名前 <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="name"
+                    type="text"
+                    value={form.name}
+                    onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="山田 太郎"
+                  />
+                </div>
+
+                {/* メールアドレス */}
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                    メールアドレス <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    required
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="example@email.com"
+                  />
+                </div>
+
+                {/* ご要件 */}
+                <div>
+                  <label htmlFor="detail" className="block text-sm font-medium text-gray-700 mb-2">
+                    ご要件 <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    id="detail"
+                    value={form.detail}
+                    onChange={e => setForm(f => ({ ...f, detail: e.target.value }))}
+                    required
+                    rows={4}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="ご相談内容やご質問など、お気軽にご記入ください"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-8 flex justify-between items-center">
+                <button
+                  type="button"
+                  onClick={() => setStep(2)}
+                  className="px-6 py-2 text-gray-600 hover:text-gray-800"
+                >
+                  ← 戻る
+                </button>
+                <button
+                  type="submit"
+                  className="px-8 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors"
+                >
+                  予約を確定する
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       </main>
     );
   }
