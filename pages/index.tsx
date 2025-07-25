@@ -260,7 +260,13 @@ export default function ReservationFlow() {
             </div>
           </div>
 
-          <div className="mt-8 text-center">
+          <div className="mt-8 text-center grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+            <button
+              onClick={() => setStep(0)}
+              className="px-6 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium border-2 border-blue-500"
+            >
+              ← トップページに戻る
+            </button>
             <button
               disabled={!meetingType}
               onClick={() => setStep(2)}
@@ -308,6 +314,14 @@ export default function ReservationFlow() {
             <p className="text-xl text-gray-600">
               {meetingType === "onsite" ? "来社" : "オンライン"}での面談日時をお選びください
             </p>
+            <div className="mt-6">
+              <button
+                onClick={() => setStep(1)}
+                className="px-6 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium border-2 border-blue-500"
+              >
+                ← 面談方法選択に戻る
+              </button>
+            </div>
           </div>
 
           {/* 最短予約枠 */}
@@ -330,7 +344,7 @@ export default function ReservationFlow() {
                       </div>
                       <div className="text-lg font-bold text-blue-600">
                         {new Date(slot.start).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
-                        <span className="text-gray-400"> 〜 </span>
+                        <span className="text-blue-600"> 〜 </span>
                         {new Date(slot.end).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}
                       </div>
                     </div>
@@ -400,12 +414,32 @@ export default function ReservationFlow() {
               </table>
             </div>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center flex justify-center gap-4">
+              <button
+                onClick={() => setWeekOffset(weekOffset - 1)}
+                disabled={weekOffset <= 0}
+                className={`px-6 py-2 rounded-lg transition-colors ${
+                  weekOffset <= 0
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                前の一週間を見る
+              </button>
               <button
                 onClick={() => setWeekOffset(weekOffset + 1)}
                 className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 次の一週間を見る
+              </button>
+            </div>
+            
+            <div className="mt-4 text-center">
+              <button
+                onClick={() => setStep(1)}
+                className="px-6 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-medium border-2 border-blue-500"
+              >
+                ← 面談方法選択に戻る
               </button>
             </div>
           </div>

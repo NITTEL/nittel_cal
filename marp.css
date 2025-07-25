@@ -1,0 +1,58 @@
+/* Marp Global Styles */
+section {
+  background-color: white;
+  color: black;
+  font-family: 'Arial', sans-serif;
+}
+
+/* Mermaid Styles - 強制的に適用 */
+.mermaid {
+  width: 100%;
+  height: 100%;
+  background: none;
+  border: none;
+}
+
+.mermaid svg {
+  display: block;
+  min-width: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0 auto;
+}
+
+/* すべてのMermaidテキスト要素を太字・黒色に */
+.mermaid text {
+  font-weight: bold !important;
+  fill: #000000 !important;
+  font-size: 14px !important;
+}
+
+.mermaid .label {
+  font-weight: bold !important;
+  color: #000000 !important;
+}
+
+/* より強力なセレクタ */
+.mermaid svg text {
+  font-weight: bold !important;
+  fill: #000000 !important;
+  font-size: 14px !important;
+}
+
+.mermaid svg .label {
+  font-weight: bold !important;
+  color: #000000 !important;
+}
+
+/* ノード内のテキスト */
+.mermaid .node text {
+  font-weight: bold !important;
+  fill: #000000 !important;
+}
+
+/* エッジのラベル */
+.mermaid .edgeLabel {
+  font-weight: bold !important;
+  color: #000000 !important;
+} 

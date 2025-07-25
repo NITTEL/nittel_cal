@@ -1,0 +1,6 @@
+{
+  "themeSet": "./",
+  "html": {
+    "css": "./marp.css"
+  }
+} 
