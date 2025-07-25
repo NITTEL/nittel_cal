@@ -162,6 +162,25 @@ export default function ReservationFlow() {
                     予約を開始する
                   </button>
                 </div>
+                
+                {/* 緊急用カード */}
+                <div className="bg-white rounded-2xl shadow-xl p-7 flex flex-col items-center transition-all duration-200 hover:shadow-2xl border-2 border-red-500">
+                  <span className="text-3xl mb-2">🚨</span>
+                  <h2 className="text-lg font-bold mb-1">緊急用</h2>
+                  <p className="text-gray-600 mb-5 text-center text-sm">営業時間外でも緊急の場合はこちらからご案内いたします</p>
+                  <button
+                    onClick={() => {
+                      sessionStorage.setItem('fromReservation', 'true');
+                      router.push('/guide');
+                    }}
+                    className="w-full max-w-[220px] bg-red-600 text-white py-2.5 rounded-lg font-bold hover:bg-red-700 transition-colors text-base shadow-md"
+                  >
+                    緊急案内を開始する
+                  </button>
+                  <p className="text-xs text-gray-500 mt-4">
+                    ※緊急時のみご利用ください
+                  </p>
+                </div>
               </>
             )}
           </div>

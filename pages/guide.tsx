@@ -13,7 +13,7 @@ export default function GuidePage() {
   }, [router.isReady]);
 
   const handleMeetConnect = () => {
-    window.open('https://meet.google.com/abc-defg-hij', '_blank');
+    window.open('https://meet.google.com/cki-ppib-yue', '_blank');
   };
 
   return (
